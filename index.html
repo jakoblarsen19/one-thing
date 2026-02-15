@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>One Thing</title>
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;900&display=swap" rel="stylesheet">
+    
+    <style>
+        :root {
+            --bg: #000000;
+            --fg: #ffffff;
+            --gray: #333333;
+            --accent: #ffffff;
+        }
+
+        body, html {
+            margin: 0; padding: 0;
+            background: var(--bg);
+            color: var(--fg);
+            font-family: 'Inter', sans-serif;
+            height: 100%;
+            overflow: hidden;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        #app { width: 100%; max-width: 400px; height: 100%; padding: 40px; box-sizing: border-box; display: flex; flex-direction: column; }
+
+        /* Views */
+        .view { display: none; flex-direction: column; height: 100%; }
+        .view.active { display: flex; }
+
+        /* Onboarding */
+        h1 { font-weight: 900; font-size: 3rem; margin: 0; letter-spacing: -2px; }
+        .subtitle { color: #888; margin-bottom: 40px; font-size: 1.1rem; }
+        
+        .option {
+            background: var(--gray);
+            padding: 20px;
+            border-radius: 12px;
+            margin-bottom: 15px;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: transform 0.1s;
+        }
+        .option:active { transform: scale(0.98); }
+        .identity-tag { font-style: italic; font-size: 0.8rem; opacity: 0.6; }
+
+        /* Focus Screen */
+        .progress-dots { display: flex; justify-content: center; gap: 8px; margin-top: 20px; }
+        .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--gray); }
+        .dot.filled { background: var(--fg); }
+
+        .main-content { flex-grow: 1; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; }
+        .label { font-size: 0.8rem; letter-spacing: 4px; opacity: 0.6; margin-bottom: 10px; }
+        .identity-display { font-weight: 900; font-size: 2.5rem; text-transform: uppercase; margin-bottom: 40px; }
+
+        #action-btn {
+            width: 220px; height: 220px;
+            border-radius: 50%;
+            border: 4px solid var(--fg);
+            background: transparent;
+            color: var(--fg);
+            font-weight: 900;
+            font-size: 1.2rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        #action-btn.done { background: var(--fg); color: var(--bg); pointer-events: none; }
+    </style>
+</head>
+<body>
+
+<div id="app">
+    <div id="onboarding" class="view active">
+        <h1>1% Better</h1>
+        <p class="subtitle">Stop trying. Start becoming.</p>
+        <div id="options-list"></div>
+    </div>
+
+    <div id="focus" class="view">
+        <div class="progress-dots" id="dots"></div>
+        <div class="main-content">
+            <div class="label">YOU ARE</div>
+            <div id="display-identity" class="identity-display"></div>
+            <button id="action-btn">I DID IT</button>
+            <p id="task-name" style="margin-top: 20px; color: #888;"></p>
+        </div>
+    </div>
+</div>
+
+<script>
+    const habits = [
+        { title: "5 Squats", identity: "The Athlete" },
+        { title: "Floss One Tooth", identity: "The Healthy One" },
+        { title: "1-Minute Breath", identity: "The Meditator" }
+    ];
+
+    // State Persistence (Local Storage replaces @AppStorage)
+    let state = {
+        selectedHabit: JSON.parse(localStorage.getItem('habit')) || null,
+        completedToday: localStorage.getItem('lastDone') === new Date().toDateString(),
+        history: JSON.parse(localStorage.getItem('history')) || [0,0,0,0,0,0,0]
+    };
+
+    function init() {
+        if (state.selectedHabit) {
+            showFocusView();
+        } else {
+            renderOptions();
+        }
+    }
+
+    function renderOptions() {
+        const list = document.getElementById('options-list');
+        habits.forEach(h => {
+            const div = document.createElement('div');
+            div.className = 'option';
+            div.innerHTML = `<span>${h.title}</span><span class="identity-tag">${h.identity}</span>`;
+            div.onclick = () => selectHabit(h);
+            list.appendChild(div);
+        });
+    }
+
+    function selectHabit(habit) {
+        state.selectedHabit = habit;
+        localStorage.setItem('habit', JSON.stringify(habit));
+        showFocusView();
+    }
+
+    function showFocusView() {
+        document.getElementById('onboarding').classList.remove('active');
+        document.getElementById('focus').classList.add('active');
+        document.getElementById('display-identity').innerText = state.selectedHabit.identity;
+        document.getElementById('task-name').innerText = `Task: ${state.selectedHabit.title}`;
+        
+        updateDots();
+        if (state.completedToday) setButtonDone();
+    }
+
+    function updateDots() {
+        const dotsCont = document.getElementById('dots');
+        dotsCont.innerHTML = '';
+        state.history.forEach(day => {
+            const d = document.createElement('div');
+            d.className = `dot ${day ? 'filled' : ''}`;
+            dotsCont.appendChild(d);
+        });
+    }
+
+    function setButtonDone() {
+        const btn = document.getElementById('action-btn');
+        btn.innerText = 'DONE';
+        btn.classList.add('done');
+    }
+
+    document.getElementById('action-btn').onclick = () => {
+        state.completedToday = true;
+        state.history[0] = 1; // Mark first dot
+        localStorage.setItem('lastDone', new Date().toDateString());
+        localStorage.setItem('history', JSON.stringify(state.history));
+        setButtonDone();
+        updateDots();
+        
+        // Haptic Feedback for Web
+        if (window.navigator.vibrate) window.navigator.vibrate(50);
+    };
+
+    init();
+</script>
+</body>
+</html>
